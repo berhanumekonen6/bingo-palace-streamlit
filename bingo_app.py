@@ -1,5 +1,5 @@
 # ===================================================================
-# BINGO PALACE – STREAMLIT VERSION (Enhanced with Auto-Call & Cards)
+# BINGO PALACE – STREAMLIT VERSION (with unique keys fix)
 # ===================================================================
 import streamlit as st
 import sqlite3
@@ -47,7 +47,6 @@ else:
 def init_db():
     conn = get_db()
     c = conn.cursor()
-    # Use IF NOT EXISTS for SQLite, or adjust for MySQL
     if DB_TYPE == 'sqlite':
         c.execute('''CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -98,7 +97,6 @@ def init_db():
             created_at TEXT
         )''')
     else:
-        # MySQL specific syntax (auto_increment, etc.)
         c.execute('''CREATE TABLE IF NOT EXISTS users (
             id INT AUTO_INCREMENT PRIMARY KEY,
             username VARCHAR(50) UNIQUE,
@@ -370,7 +368,6 @@ def check_bingo(card_numbers, called_numbers):
 # ---------- GRAPHICAL BINGO CARD RENDERER ----------
 def render_bingo_card(card_id, card_numbers, called_numbers):
     """Display a beautiful BINGO card with called numbers highlighted."""
-    # CSS for the card
     st.markdown(f"""
     <div style="border: 2px solid #FFD700; border-radius: 12px; padding: 15px; background: linear-gradient(135deg, #ffffff, #f0f8ff); margin: 10px 0; display: inline-block;">
         <div style="text-align: center; font-weight: bold; font-size: 18px; margin-bottom: 8px; color: #000;">CARD #{card_id}</div>
@@ -384,7 +381,6 @@ def render_bingo_card(card_id, card_numbers, called_numbers):
             </tr>
     """, unsafe_allow_html=True)
 
-    # Build grid rows
     for row in range(5):
         html_row = "<tr>"
         for col in range(5):
@@ -430,9 +426,9 @@ if 'last_call_time' not in st.session_state:
 # ---------- LOGIN / REGISTER ----------
 def login_form():
     st.subheader("🔐 Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
+    username = st.text_input("Username", key="login_username")
+    password = st.text_input("Password", type="password", key="login_password")
+    if st.button("Login", key="login_button"):
         user = get_user(username)
         if user and verify_password(password, user[2]):
             st.session_state.logged_in = True
@@ -447,10 +443,10 @@ def login_form():
 
 def register_form():
     st.subheader("📝 Register")
-    username = st.text_input("Choose Username")
-    password = st.text_input("Password", type="password")
-    confirm = st.text_input("Confirm Password", type="password")
-    if st.button("Register"):
+    username = st.text_input("Choose Username", key="reg_username")
+    password = st.text_input("Password", type="password", key="reg_password")
+    confirm = st.text_input("Confirm Password", type="password", key="reg_confirm")
+    if st.button("Register", key="reg_button"):
         if password != confirm:
             st.error("Passwords do not match")
         elif len(password) < 6:
@@ -477,7 +473,7 @@ def main():
     with st.sidebar:
         st.markdown(f"### 👤 {st.session_state.username}")
         st.write(f"💰 Balance: **{st.session_state.balance:.2f} ETB**")
-        if st.button("🚪 Logout"):
+        if st.button("🚪 Logout", key="logout_button"):
             st.session_state.logged_in = False
             st.session_state.user_id = None
             st.session_state.username = None
@@ -487,7 +483,7 @@ def main():
             st.rerun()
         st.markdown("---")
         st.write("### 🎯 Navigation")
-        page = st.radio("Go to", ["🏠 Game Lobby", "📊 History", "💳 Add Funds"])
+        page = st.radio("Go to", ["🏠 Game Lobby", "📊 History", "💳 Add Funds"], key="nav_radio")
 
     # ---------- GAME LOBBY ----------
     if page == "🏠 Game Lobby":
@@ -549,7 +545,6 @@ def main():
                     st.rerun()
                 else:
                     st.warning("All numbers called.")
-                    # Auto-end game if all numbers called
                     conn = get_db()
                     c = conn.cursor()
                     if DB_TYPE == 'sqlite':
@@ -598,7 +593,7 @@ def main():
                                     selected.append(i)
                             st.rerun()
                 st.write(f"Selected: {selected} (Cost: {len(selected)*20} ETB)")
-                if st.button("✅ Join Game"):
+                if st.button("✅ Join Game", key="join_game_button"):
                     if len(selected) == 0:
                         st.error("Select at least one card.")
                     else:
@@ -653,7 +648,7 @@ def main():
                 st.subheader("🛠️ Admin Controls")
                 col1, col2 = st.columns(2)
                 with col1:
-                    if st.button("📢 Call Next Number"):
+                    if st.button("📢 Call Next Number", key="admin_call"):
                         all_nums = set(range(1, 76))
                         called = set(called_numbers)
                         available = list(all_nums - called)
@@ -673,7 +668,7 @@ def main():
                         else:
                             st.warning("All numbers called.")
                 with col2:
-                    if st.button("⏹️ End Game"):
+                    if st.button("⏹️ End Game", key="admin_end"):
                         conn = get_db()
                         c = conn.cursor()
                         if DB_TYPE == 'sqlite':
@@ -699,7 +694,7 @@ def main():
                 st.success(f"🏆 Winner: {winner[0]} (Card #{winner[1]}) – Prize: {winner[2]} ETB")
             else:
                 st.warning("No winner declared.")
-            if st.button("🔄 Next Game"):
+            if st.button("🔄 Next Game", key="next_game_button"):
                 new_id = create_new_game()
                 st.session_state.joined_cards = []
                 st.session_state.selected_cards = []
@@ -735,11 +730,11 @@ def main():
     # ---------- ADD FUNDS ----------
     elif page == "💳 Add Funds":
         st.subheader("💳 Add Funds")
-        with st.form("payment"):
-            amount = st.number_input("Amount (ETB)", min_value=20, step=10)
-            phone = st.text_input("Phone Number")
-            code = st.text_input("Confirmation Code (demo: 2121)")
-            if st.form_submit_button("Pay"):
+        with st.form("payment_form"):
+            amount = st.number_input("Amount (ETB)", min_value=20, step=10, key="pay_amount")
+            phone = st.text_input("Phone Number", key="pay_phone")
+            code = st.text_input("Confirmation Code (demo: 2121)", key="pay_code")
+            if st.form_submit_button("Pay", type="primary"):
                 if code == "2121":
                     update_balance(st.session_state.user_id, amount)
                     st.session_state.balance += amount
